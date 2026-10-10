@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'">
+  <title>PokeIdle Multi</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="top">
+      <strong><span class="dot"></span> PokeIdle</strong>
+      <button id="grid" title="Voltar ao grid com as quatro contas">▦ Grid</button>
+      <nav id="accounts" aria-label="Contas e controles individuais"></nav>
+      <button id="settings" aria-expanded="false" aria-controls="settings-panel">Configurações</button>
+    </div>
+    <span id="mode" class="sr-only" role="status">4 contas · grid 2 × 2</span>
+    <section id="settings-panel" hidden aria-label="Configurações">
+      <div class="settings-title"><strong>Links e navegador</strong><span id="save-status" role="status">Escolhas salvas automaticamente</span></div>
+      <p>Links de nova aba/janela e links diretos da Twitch usam a escolha abaixo. A navegação normal do jogo continua no app.</p>
+      <div id="browser-options"></div>
+      <div class="settings-actions"><button id="apply-all">Usar a escolha da Conta 1 em todas</button><span>O navegador usa seus próprios logins e perfil, separados das contas do app.</span></div>
+      <form id="address"><label for="url">Jogo</label><input id="url" type="url" required spellcheck="false" aria-label="Endereço do jogo"><button>Abrir nas 4 contas</button></form>
+      <span id="message" role="alert"></span>
+      <div id="app-updates">
+        <div><strong>Atualizações do aplicativo</strong> <span id="app-version"></span></div>
+        <div class="update-actions"><span id="update-status" role="status"></span><button id="update-check">Verificar</button><button id="update-download" hidden>Baixar versão nova</button><button id="update-install" hidden>Instalar e reiniciar</button></div>
+        <small>A instalação fecha as quatro sessões. Faça isso quando puder interromper o jogo.</small>
+      </div>
+    </section>
+  </header>
+  <script src="renderer.js"></script>
+</body>
+</html>
