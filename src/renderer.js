@@ -25,6 +25,10 @@ for (let id = 0; id < 4; id++) {
   card.className = 'account';
   card.innerHTML = `<div class="controls"><button class="select">Conta ${id + 1}</button><button class="minus" aria-label="Diminuir zoom da conta ${id + 1}">−</button><button class="zoom" title="Restaurar zoom para 100%">100%</button><button class="plus" aria-label="Aumentar zoom da conta ${id + 1}">+</button><button class="refresh" aria-label="Recarregar conta ${id + 1}">↻</button></div><small class="status">Carregando…</small>`;
   card.querySelector('.select').onclick = () => command('focus', { id });
+  const mute = document.createElement('button');
+  mute.className = 'mute';
+  mute.onclick = () => command('mute', { id });
+  card.querySelector('.controls').append(mute);
   card.querySelector('.refresh').title = 'Recarregar (F5). Shift+clique: buscar versão nova sem cache (Ctrl+F5).';
   card.querySelector('.refresh').onclick = event => command('refresh', { id, ignoreCache: event.shiftKey });
   for (const [selector, step] of [['.minus', -1], ['.plus', 1], ['.zoom', 0]]) {
@@ -61,6 +65,11 @@ function render(state) {
     card.classList.toggle('active', state.selected === account.id);
     card.querySelector('.select').setAttribute('aria-pressed', String(state.selected === account.id));
     card.querySelector('.zoom').textContent = `${Math.round(account.zoom * 100)}%`;
+    const mute = card.querySelector('.mute');
+    mute.textContent = account.muted ? '🔇' : '🔊';
+    mute.title = `${account.muted ? 'Ativar' : 'Silenciar'} som da Conta ${account.id + 1}`;
+    mute.setAttribute('aria-label', mute.title);
+    mute.setAttribute('aria-pressed', String(account.muted));
     const status = account.linkStatus || account.status;
     card.querySelector('.select').title = `Conta ${account.id + 1}: ${status}`;
     card.querySelector('.status').textContent = status;

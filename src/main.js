@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const { browserIds, detectBrowsers, webURL, isTwitchURL, openBrowserLink } = require('./browser-links');
 const browsers = detectBrowsers();
+app.setName('PokeIdle Multi');
+if (process.platform === 'win32') app.setAppUserModelId('local.pokeidle.multi');
 const { autoUpdater: applicationUpdater } = require('electron-updater');
 const { createUpdates } = require('./app-updates');
 let updates;
@@ -14,9 +16,10 @@ app.setPath('userData', path.join(app.getPath('appData'), 'PokeIdleMulti'));
 const configPath = path.join(app.getPath('userData'), 'preferences.json');
 const uiPath = path.join(__dirname, 'index.html');
 const togglePath = path.join(__dirname, 'toggle.html');
-let config = { url: 'https://pokeidle.io', zoom: [1, 1, 1, 1], browsers: ['default', 'default', 'default', 'default'] };
+let config = { url: 'https://pokeidle.io', zoom: [1, 1, 1, 1], muted: [false, false, false, false], browsers: ['default', 'default', 'default', 'default'] };
 try {
   const saved = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  if (Array.isArray(saved.muted) && saved.muted.length === 4) config.muted = saved.muted.map(value => value === true);
   if (Array.isArray(saved.browsers) && saved.browsers.length === 4) {
     config.browsers = saved.browsers.map(b => browserIds.includes(b) ? b : 'default');
   }
@@ -66,7 +69,7 @@ function save() {
 }
 function state() {
   return { update: updates?.getState(), url: config.url, selected, addressOpen, headerHidden, browsers: browsers.map(b => ({ id: b.id, name: b.name, available: Boolean(b.executable) })), accounts: accounts.map((a, i) => ({
-    id: i, zoom: config.zoom[i], status: a.status, linkStatus: a.linkStatus, browser: config.browsers[i]
+    id: i, muted: config.muted[i], zoom: config.zoom[i], status: a.status, linkStatus: a.linkStatus, browser: config.browsers[i]
   })) };
 }
 function publish() {
@@ -128,6 +131,7 @@ function createWindow() {
     } });
     const account = { view, status: 'Carregando…', linkStatus: '' };
     const wc = view.webContents;
+    wc.setAudioMuted(config.muted[i]);
     installReloadKeys(wc, i);
     wc.on('focus', () => { lastActiveAccount = i; });
     wc.on('will-prevent-unload', event => {
@@ -262,6 +266,12 @@ else {
         const wc = accounts[id].view.webContents;
         if (command === 'focus') { selected = id; layout(); wc.focus(); }
         else if (command === 'refresh') { refreshAccount(id, value.ignoreCache === true); }
+        else if (command === 'mute') {
+          const previous = config.muted[id];
+          config.muted[id] = !previous;
+          try { save(); } catch (error) { config.muted[id] = previous; throw error; }
+          wc.setAudioMuted(config.muted[id]);
+        }
         else if (command === 'zoom') {
           if (![0, -1, 1].includes(value.step)) throw new Error('Zoom inválido');
           config.zoom[id] = value.step === 0 ? 1 : Math.min(2, Math.max(0.5, Math.round((config.zoom[id] + value.step * 0.1) * 10) / 10));

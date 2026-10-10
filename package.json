@@ -1,7 +1,7 @@
 {
   "name": "pokeidle-multi",
   "productName": "PokeIdle Multi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Quatro sessões independentes do PokeIdle",
   "author": "Local",
@@ -21,7 +21,7 @@
     "appId": "local.pokeidle.multi",
     "directories": { "output": "dist" },
     "files": ["src/**/*", "package.json"],
-    "win": { "target": "nsis", "signAndEditExecutable": false },
+    "win": { "target": "nsis", "signAndEditExecutable": true, "signExecutable": false },
     "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "deleteAppDataOnUninstall": false }
   }
 }
