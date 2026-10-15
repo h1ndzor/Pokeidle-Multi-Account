@@ -4,6 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const { browserIds, detectBrowsers, webURL, isTwitchURL, openBrowserLink } = require('./browser-links');
+const { isVoteURL, createVotePopups } = require('./vote-popups');
 const browsers = detectBrowsers();
 app.setName('PokeIdle Multi');
 if (process.platform === 'win32') app.setAppUserModelId('local.pokeidle.multi');
@@ -109,6 +110,7 @@ async function openAccountLink(id, url) {
   if (!account || closing) return;
   try {
     webURL(url);
+    if (id > 0 && isVoteURL(url)) { account.votePopups.open(url); return; }
     if (config.browsers[id] === 'internal') await account.view.webContents.loadURL(url);
     else await openBrowserLink(url, config.browsers[id], { browsers, openExternal: shell.openExternal });
     account.linkStatus = config.browsers[id] === 'internal' ? '' : 'Link enviado ao navegador';
@@ -131,6 +133,8 @@ function createWindow() {
     } });
     const account = { view, status: 'Carregando…', linkStatus: '' };
     const wc = view.webContents;
+    account.votePopups = createVotePopups({ parent: win, session: wc.session, accountId: i });
+    wc.on('did-create-window', account.votePopups.register);
     wc.setAudioMuted(config.muted[i]);
     installReloadKeys(wc, i);
     wc.on('focus', () => { lastActiveAccount = i; });
@@ -148,6 +152,7 @@ function createWindow() {
     wc.session.setPermissionCheckHandler(() => false);
     wc.on('will-navigate', (event, url) => {
       if (!isWebURL(url)) event.preventDefault();
+      else if (i > 0 && isVoteURL(url)) { event.preventDefault(); account.votePopups.open(url); }
       else if (config.browsers[i] !== 'internal' && isTwitchURL(url)) {
         event.preventDefault(); void openAccountLink(i, url);
       }
@@ -155,6 +160,7 @@ function createWindow() {
     wc.on('will-redirect', (event, url) => { if (!isWebURL(url)) event.preventDefault(); });
     // Links de nova aba/janela usam a escolha da conta; o jogo permanece aberto.
     wc.setWindowOpenHandler(({ url }) => {
+      if (i > 0 && isVoteURL(url)) return account.votePopups.response();
       void openAccountLink(i, url);
       return { action: 'deny' };
     });
@@ -206,7 +212,7 @@ function createWindow() {
   });
   win.on('closed', () => {
     // WebContentsView exige limpeza explícita quando a janela termina.
-    accounts.forEach(({ view }) => { if (!view.webContents.isDestroyed()) view.webContents.close(); });
+    accounts.forEach(({ view, votePopups }) => { votePopups.close(); if (!view.webContents.isDestroyed()) view.webContents.close(); });
     if (toggleView && !toggleView.webContents.isDestroyed()) toggleView.webContents.close();
     toggleView = null;
     accounts = []; win = null;

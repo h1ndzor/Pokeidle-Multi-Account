@@ -1,17 +1,20 @@
 {
   "name": "pokeidle-multi",
   "productName": "PokeIdle Multi",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Quatro sessões independentes do PokeIdle",
   "author": "Local",
-  "dependencies": { "electron-updater": "6.8.9" },
+  "dependencies": {
+    "electron-updater": "6.8.9"
+  },
   "devDependencies": {
     "electron": "44.7.0",
     "electron-builder": "26.15.3"
   },
   "main": "src/main.js",
   "scripts": {
+    "dist:online": "node scripts/build-online-installer.cjs",
     "test": "node --test tests/*.test.js",
     "start": "electron .",
     "dist": "electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never",
@@ -19,9 +22,23 @@
   },
   "build": {
     "appId": "local.pokeidle.multi",
-    "directories": { "output": "dist" },
-    "files": ["src/**/*", "package.json"],
-    "win": { "target": "nsis", "signAndEditExecutable": true, "signExecutable": false },
-    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "deleteAppDataOnUninstall": false }
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": true,
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    }
   }
 }
