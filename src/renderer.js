@@ -6,7 +6,7 @@ let browserChoices = ['default', 'default', 'default', 'default'];
 let savingBrowsers = false;
 async function command(name, value) {
   try { message.textContent = ''; render(await window.poke.command(name, value)); return true; }
-  catch (error) { message.textContent = error.message; return false; }
+  catch (error) { message.textContent = error.message; try { render(await window.poke.command('state')); } catch {} return false; }
 }
 async function saveBrowsers(choices) {
   if (savingBrowsers) return;
@@ -44,7 +44,19 @@ for (let id = 0; id < 4; id++) {
   };
   label.append(select); browserOptions.append(label);
 }
+for (let id = 0; id < 4; id++) {
+  const label = document.createElement('label');
+  const input = document.createElement('input'); input.type = 'checkbox';
+  input.onchange = async () => { input.disabled = true; await command('enabled', { id, enabled: input.checked }); input.disabled = false; };
+  label.append(input, document.createTextNode('Conta ' + (id + 1)));
+  document.querySelector('#account-power').append(label);
+}
+document.querySelector('#economy').onchange = event => command('economy', event.target.checked);
+document.querySelector('#close-popups').onclick = () => command('close-popups');
 function render(state) {
+  document.querySelector('#economy').checked = state.economy;
+  const format = value => value ? value.cpu.toFixed(1) + '% CPU · ' + value.memory.toFixed(0) + ' MB RAM' : 'Sem processo ativo';
+  document.querySelector('#usage').textContent = state.usage ? 'Total do app: ' + format(state.usage.total) + '\n' + state.usage.accounts.map((a, i) => 'Conta ' + (i + 1) + ': ' + format(a)).join('\n') : 'Aguardando medição…';
   if (state.update) {
     const update = state.update;
     document.querySelector('#app-version').textContent = `v${update.version}`;
@@ -62,9 +74,13 @@ function render(state) {
   document.querySelector('#mode').textContent = state.selected === null ? '4 contas · grid 2 × 2' : `Conta ${state.selected + 1} ampliada · outras 3 em segundo plano`;
   state.accounts.forEach(account => {
     const card = container.children[account.id];
+    card.classList.toggle('off', !account.enabled);
+    card.querySelectorAll('button').forEach(button => { button.disabled = !account.enabled; });
+    document.querySelectorAll('#account-power input')[account.id].checked = account.enabled;
     card.classList.toggle('active', state.selected === account.id);
     card.querySelector('.select').setAttribute('aria-pressed', String(state.selected === account.id));
     card.querySelector('.zoom').textContent = `${Math.round(account.zoom * 100)}%`;
+    card.querySelector('.zoom').title = `Zoom no modo ${account.zoomMode}. Clique para restaurar 100% somente neste modo.`;
     const mute = card.querySelector('.mute');
     mute.textContent = account.muted ? '🔇' : '🔊';
     mute.title = `${account.muted ? 'Ativar' : 'Silenciar'} som da Conta ${account.id + 1}`;

@@ -21,8 +21,19 @@
       <p>Links de nova aba/janela e links diretos da Twitch usam a escolha abaixo. A navegação normal do jogo continua no app.</p>
       <div id="browser-options"></div>
       <div class="settings-actions"><button id="apply-all">Usar a escolha da Conta 1 em todas</button><span>O navegador usa seus próprios logins e perfil, separados das contas do app.</span></div>
-      <form id="address"><label for="url">Jogo</label><input id="url" type="url" required spellcheck="false" aria-label="Endereço do jogo"><button>Abrir nas 4 contas</button></form>
+      <form id="address"><label for="url">Jogo</label><input id="url" type="url" required spellcheck="false" aria-label="Endereço do jogo"><button>Abrir nas contas ativas</button></form>
       <span id="message" role="alert"></span>
+      <section id="performance" aria-label="Desempenho">
+        <strong>Desempenho</strong>
+        <label class="economy-label"><input id="economy" type="checkbox"> Modo econômico (experimental)</label>
+        <p>Reduz animações e temporizadores das páginas em segundo plano ou com o app minimizado. Pode afetar a caça e conexões; desative se notar atrasos.</p>
+        <div id="account-power"></div>
+        <p>Desativar encerra o jogo daquela conta, mas mantém seus cookies. Reativar carrega a página novamente. A escolha vale também na próxima abertura.</p>
+        <button id="close-popups">Fechar todos os popups de votação</button>
+        <p>Para economizar também nas telas visíveis, ative manualmente o modo economia do próprio jogo. O app não altera essa opção.</p>
+        <div id="usage" role="status">Aguardando medição…</div>
+        <small>Leitura a cada 3 segundos com este painel aberto. Por conta: processo principal da página; GPU, popups e outros processos entram no total. Memória compartilhada pode ser contada mais de uma vez. CPU: 100% equivale a um núcleo.</small>
+      </section>
       <div id="app-updates">
         <div><strong>Atualizações do aplicativo</strong> <span id="app-version"></span></div>
         <div class="update-actions"><span id="update-status" role="status"></span><button id="update-check">Verificar</button><button id="update-download" hidden>Baixar versão nova</button><button id="update-install" hidden>Instalar e reiniciar</button></div>

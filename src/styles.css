@@ -45,3 +45,13 @@ nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
   .controls button { padding-left: 3px; padding-right: 3px; font-size: 11px; }
   nav { gap: 4px; }
 }
+
+#settings-panel { overflow-y: auto; padding-bottom: 12px; }
+#performance { margin-top: 8px; border-top: 1px solid #33445c; padding-top: 8px; }
+.economy-label { display: inline-flex; align-items: center; gap: 8px; margin-left: 16px; }
+#economy { width: auto; }
+#account-power { display: flex; gap: 12px; }
+#account-power label { display: flex; align-items: center; gap: 6px; }
+#account-power input { width: auto; }
+#usage { margin: 10px 0; line-height: 1.6; white-space: pre-line; }
+.account.off { opacity: .5; }

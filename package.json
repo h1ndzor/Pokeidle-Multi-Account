@@ -1,7 +1,7 @@
 {
   "name": "pokeidle-multi",
   "productName": "PokeIdle Multi",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Quatro sessões independentes do PokeIdle",
   "author": "Local",
