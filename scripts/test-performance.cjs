@@ -20,7 +20,7 @@ fs.writeFileSync(path.join(tmp,'main.cjs'),`const e=require('electron');e.app.se
   await app.evaluate(async ({session})=>session.fromPartition('persist:pokeidle-account-2').cookies.set({url:'https://pokeidle.io',name:'preserved',value:'yes',expirationDate:Date.now()/1000+3600}));
   await cmd('focus',{id:1});await cmd('enabled',{id:1,enabled:false});
   let state=await cmd('state');assert.equal(state.selected,null);assert.equal(state.accounts[1].enabled,false);
-  assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.length),4);
+  assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.length),5);
   await cmd('enabled',{id:1,enabled:true});
   const cookie=await app.evaluate(async ({session})=>(await session.fromPartition('persist:pokeidle-account-2').cookies.get({name:'preserved'}))[0].value);assert.equal(cookie,'yes');
   await cmd('address');await page.waitForTimeout(3200);state=await cmd('state');assert(state.usage.total.memory>0);assert.equal(state.usage.accounts.length,4);
@@ -36,7 +36,7 @@ fs.writeFileSync(path.join(tmp,'main.cjs'),`const e=require('electron');e.app.se
   assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().length),1);
 await cmd('address');assert.equal((await cmd('state')).usage,null);
   for(let id=0;id<4;id++)await cmd('enabled',{id,enabled:false});
-  assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.length),1);
+  assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.length),2);
   await app.close();app=null;page=await launch();state=await cmd('state');assert(state.economy);assert(state.accounts.every(a=>!a.enabled));
   await cmd('enabled',{id:2,enabled:true});await cmd('focus',{id:2});await cmd('economy',false);await page.waitForFunction(async ()=>(await window.poke.command('state')).accounts[2].status==='Pronta');
   for (let attempt=0;attempt<100;attempt++) {

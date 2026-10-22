@@ -17,6 +17,12 @@
     </div>
     <span id="mode" class="sr-only" role="status">4 contas · grid 2 × 2</span>
     <section id="settings-panel" hidden aria-label="Configurações">
+      <section id="identity-panel"><strong>Contas e atalhos</strong><div id="identities"></div><p>Ctrl+Alt+1 a 4: ampliar a conta. Ctrl+Alt+5: voltar ao grid. Funcionam com o app em foco.</p></section>
+      <section id="health-panel"><strong>Alertas e recuperação</strong>
+      <label><input type="checkbox" id="health-alerts"> Notificações do Windows</label>
+      <label><input type="checkbox" id="health-recover"> Tentar recuperar automaticamente</label>
+      <p>Até 3 recargas (15, 30 e 60 segundos). Detecta erros de carregamento, página sem responder, processo interrompido e rede indisponível no Windows. Não confirma caça ativa nem conexão interna do jogo.</p>
+      <div id="health-status" role="status"></div></section>
       <div class="settings-title"><strong>Links e navegador</strong><span id="save-status" role="status">Escolhas salvas automaticamente</span></div>
       <p>Links de nova aba/janela e links diretos da Twitch usam a escolha abaixo. A navegação normal do jogo continua no app.</p>
       <div id="browser-options"></div>

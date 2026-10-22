@@ -1,9 +1,9 @@
 :root { color-scheme: dark; font-family: 'Segoe UI', sans-serif; background: #101722; color: #edf3fb; }
 * { box-sizing: border-box; }
 body { margin: 0; }
-header { height: 44px; padding: 4px 44px 4px 8px; overflow: hidden; border-bottom: 2px solid #33445c; }
+header { height: var(--toolbar-height); padding: 4px 44px 4px 8px; overflow: hidden; border-bottom: 2px solid #33445c; }
 header[hidden] { display: none; }
-header.expanded { height: 360px; }
+header.expanded { height: var(--panel-height); }
 .top { height: 34px; display: flex; align-items: center; gap: 6px; }
 strong { font-size: 14px; white-space: nowrap; }
 .muted, #mode { color: #95a7bf; font-size: 12px; }
@@ -13,7 +13,7 @@ button:hover { background: #354b69; }
 button:focus-visible, input:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 2px; }
 select:focus-visible { outline: 2px solid #6ee7b7; }
 button:disabled, select:disabled { opacity: .55; cursor: wait; }
-#settings-panel { height: 316px; padding: 10px 4px 0; font-size: 12px; }
+#settings-panel { height: calc(var(--panel-height) - var(--toolbar-height)); padding: 10px 4px 0; font-size: 12px; }
 #app-updates { margin-top: 8px; border-top: 1px solid #33445c; padding-top: 8px; }
 .update-actions { display: flex; align-items: center; gap: 10px; min-height: 32px; }
 #app-version, #app-updates small { color: #a7b7cc; }
@@ -55,3 +55,48 @@ nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
 #account-power input { width: auto; }
 #usage { margin: 10px 0; line-height: 1.6; white-space: pre-line; }
 .account.off { opacity: .5; }
+
+#identities { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.identity { display: flex; gap: 6px; }
+.identity input:first-child { width: 100%; min-width: 0; }
+.identity input[type=color] { width: 44px; padding: 2px; flex-shrink: 0; }
+#health-panel { border-top: 1px solid #33445c; margin: 8px 0; padding: 8px 0; }
+#health-panel label { display: inline-flex; align-items: center; margin-left: 12px; }
+#health-panel input { width: auto; }
+#health-status { white-space: pre-line; line-height: 1.7; }
+.account { border-left: 3px solid var(--account-color, #304159); }
+.account.active { border-color: var(--account-color, #6ee7b7); }
+.account.attention { background: #523119; }
+.select { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* Mesmo breakpoint usado por layout() para posicionar as views nativas. */
+:root { --toolbar-height: 44px; --panel-height: 360px; }
+#settings-panel { overflow-x: hidden; scrollbar-gutter: stable; }
+#health-status, #usage, #message, #settings-panel p, #settings-panel small { overflow-wrap: anywhere; }
+#message { display: block; white-space: normal; }
+.settings-title, .settings-actions, .update-actions, #account-power { flex-wrap: wrap; }
+#account-power label { min-width: 0; overflow-wrap: anywhere; }
+#address input { min-width: 0; flex: 1; }
+@media (max-width: 1100px) {
+  :root { --toolbar-height: 74px; --panel-height: min(500px, calc(100vh - 180px)); }
+  .top { height: 64px; }
+  .top > strong { display: none; }
+  nav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+  .account { height: 30px; }
+  .controls { height: 24px; align-items: stretch; }
+  .controls button { flex-shrink: 0; }
+  .controls .select { flex: 1; min-width: 0; }
+  #browser-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #health-panel label { margin: 8px 12px 0 0; }
+  .economy-label { margin: 8px 0 0; }
+  .settings-actions { gap: 8px; }
+}
+@media (max-width: 700px) {
+  #identities { grid-template-columns: 1fr; }
+  #address { flex-wrap: wrap; height: auto; padding: 10px 0; }
+  #address input { flex-basis: 70%; }
+  #address button { margin-left: auto; }
+  #account-power { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .top { gap: 4px; }
+  #grid, #settings { padding-left: 4px; padding-right: 4px; font-size: 11px; }
+}

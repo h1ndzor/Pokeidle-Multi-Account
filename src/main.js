@@ -1,10 +1,11 @@
 // Processo principal: cria as janelas e mantém as quatro sessões vivas.
-const { app, BrowserWindow, WebContentsView, ipcMain, Menu, shell, dialog } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Menu, shell, dialog, Notification, net } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const { browserIds, detectBrowsers, webURL, isTwitchURL, openBrowserLink } = require('./browser-links');
 const { isVoteURL, createVotePopups } = require('./vote-popups');
+const { createHealth } = require('./account-health');
 const browsers = detectBrowsers();
 app.setName('PokeIdle Multi');
 if (process.platform === 'win32') app.setAppUserModelId('local.pokeidle.multi');
@@ -17,9 +18,13 @@ app.setPath('userData', path.join(app.getPath('appData'), 'PokeIdleMulti'));
 const configPath = path.join(app.getPath('userData'), 'preferences.json');
 const uiPath = path.join(__dirname, 'index.html');
 const togglePath = path.join(__dirname, 'toggle.html');
-let config = { economy: false, enabled: [true, true, true, true], url: 'https://pokeidle.io', zoom: [1, 1, 1, 1], zoomFull: [1, 1, 1, 1], muted: [false, false, false, false], browsers: ['default', 'default', 'default', 'default'] };
+const gridShortcutPath = path.join(__dirname, 'grid-shortcut.html');
+let config = { alerts: true, autoRecover: false, names: ['Conta 1', 'Conta 2', 'Conta 3', 'Conta 4'], colors: ['#6ee7b7', '#60a5fa', '#fbbf24', '#c084fc'], economy: false, enabled: [true, true, true, true], url: 'https://pokeidle.io', zoom: [1, 1, 1, 1], zoomFull: [1, 1, 1, 1], muted: [false, false, false, false], browsers: ['default', 'default', 'default', 'default'] };
 try {
   const saved = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  config.alerts = saved.alerts !== false; config.autoRecover = saved.autoRecover === true;
+  if (Array.isArray(saved.names) && saved.names.length === 4) config.names = saved.names.map((v,i) => typeof v === 'string' && v.trim() ? v.trim().slice(0,24) : config.names[i]);
+  if (Array.isArray(saved.colors) && saved.colors.length === 4) config.colors = saved.colors.map((v,i) => /^#[0-9a-f]{6}$/i.test(v) ? v : config.colors[i]);
   config.economy = saved.economy === true;
   if (Array.isArray(saved.enabled) && saved.enabled.length === 4) config.enabled = saved.enabled.map(v => v !== false);
   if (Array.isArray(saved.muted) && saved.muted.length === 4) config.muted = saved.muted.map(value => value === true);
@@ -40,13 +45,15 @@ let selected = null; // null significa grid; 0 a 3 significa uma conta ampliada.
 let addressOpen = false;
 let headerHidden = false;
 let toggleView;
+let gridShortcutView;
 let closing = false;
 let lastActiveAccount = 0;
 
-function refreshAccount(id, ignoreCache = false) {
+function refreshAccount(id, ignoreCache = false, automatic = false) {
   const account = accounts[id];
   if (!account || closing || (!account.view || account.view.webContents.isDestroyed())) return;
   const wc = account.view.webContents;
+  if (!automatic) account.health?.manual();
   // Uma recarga solicitada pelo usuário pode prosseguir apesar de beforeunload.
   account.reloadUntil = Date.now() + 10000;
   account.linkStatus = '';
@@ -58,7 +65,14 @@ function refreshAccount(id, ignoreCache = false) {
 }
 function installReloadKeys(wc, accountId) {
   wc.on('before-input-event', (event, input) => {
-    if (input.type !== 'keyDown' || input.isAutoRepeat || input.alt) return;
+    if (input.type !== 'keyDown' || input.isAutoRepeat) return;
+    if (input.control && input.alt && !input.shift && /^[1-5]$/.test(input.key)) {
+      event.preventDefault(); const id = Number(input.key) - 1;
+      if (id === 4) { selected = null; layout(); publish(); }
+      else if (accounts[id]?.view) { selected = id; layout(); accounts[id].view.webContents.focus(); publish(); }
+      return;
+    }
+    if (input.alt) return;
     const key = input.key.toLowerCase();
     if (key !== 'f5' && !(key === 'r' && (input.control || input.meta))) return;
     event.preventDefault();
@@ -77,6 +91,7 @@ function save() {
 function currentZoom() { return selected === null ? config.zoom : config.zoomFull; }
 let usage = null;
 let metricsTimer;
+let networkTimer;
 function measureUsage() {
   const metrics = app.getAppMetrics();
   const summarize = items => ({ cpu: items.reduce((n, p) => n + p.cpu.percentCPUUsage, 0), memory: items.reduce((n, p) => n + p.memory.workingSetSize / 1024, 0) });
@@ -94,8 +109,8 @@ function updateMetrics() {
   metricsTimer.unref();
 }
 function state() {
-  return { economy: config.economy, usage, update: updates?.getState(), url: config.url, selected, addressOpen, headerHidden, browsers: browsers.map(b => ({ id: b.id, name: b.name, available: Boolean(b.executable) })), accounts: accounts.map((a, i) => ({
-    id: i, enabled: Boolean(a.view), muted: config.muted[i], zoom: currentZoom()[i], zoomMode: selected === null ? 'grid' : 'ampliada', status: a.status, linkStatus: a.linkStatus, browser: config.browsers[i]
+  return { alerts: config.alerts, autoRecover: config.autoRecover, economy: config.economy, usage, update: updates?.getState(), url: config.url, selected, addressOpen, headerHidden, browsers: browsers.map(b => ({ id: b.id, name: b.name, available: Boolean(b.executable) })), accounts: accounts.map((a, i) => ({
+    id: i, name: config.names[i], color: config.colors[i], health: a.health?.state(), enabled: Boolean(a.view), muted: config.muted[i], zoom: currentZoom()[i], zoomMode: selected === null ? 'grid' : 'ampliada', status: a.status, linkStatus: a.linkStatus, browser: config.browsers[i]
   })) };
 }
 function publish() {
@@ -105,8 +120,15 @@ function publish() {
 function layout() {
   if (!win || win.isDestroyed()) return;
   const [width, height] = win.getContentSize();
-  const top = headerHidden ? 0 : (addressOpen ? 360 : 44);
+  const compact = width <= 1100;
+  const barHeight = compact ? 74 : 44;
+  const panelHeight = compact ? Math.min(500, height - 180) : 360;
+  const top = headerHidden ? 0 : (addressOpen ? panelHeight : barHeight);
   if (toggleView) toggleView.setBounds({ x: width - 36, y: 7, width: 30, height: 28 });
+  if (gridShortcutView) {
+    gridShortcutView.setBounds({ x: 0, y: 0, width: 36, height: 36 });
+    gridShortcutView.setVisible(headerHidden && selected !== null);
+  }
   const available = Math.max(1, height - top);
   accounts.forEach(({ view }, i) => {
     if (!view) return;
@@ -156,6 +178,16 @@ function createAccount(i) {
     } });
     const account = { view, status: 'Carregando…', linkStatus: '' };
     const wc = view.webContents;
+    account.health = createHealth({ options: () => config, online: () => net.isOnline(),
+      reload: () => { if (!closing && accounts[i] === account) refreshAccount(i, false, true); },
+      notify: message => {
+        if (closing || !Notification.isSupported()) return;
+        const notification = new Notification({ title: config.names[i] + ' precisa de atenção', body: message });
+        notification.on('click', () => { if (!closing && win && accounts[i]?.view) { win.restore(); win.show(); selected = i; layout(); win.focus(); publish(); } });
+        notification.show();
+      }, changed: publish });
+    wc.on('unresponsive', () => account.health.fail('Página sem responder'));
+    wc.on('responsive', () => { if (account.health.state().message === 'Página sem responder') account.health.loaded(); });
     account.votePopups = createVotePopups({ parent: win, session: wc.session, accountId: i });
     wc.on('did-create-window', account.votePopups.register);
     wc.setAudioMuted(config.muted[i]);
@@ -197,16 +229,18 @@ function createAccount(i) {
       });
       Menu.buildFromTemplate(items).popup({ window: win });
     });
-    wc.on('did-start-loading', () => { account.status = 'Carregando…'; publish(); });
+    wc.on('did-start-loading', () => { account.loadFailed = false; account.status = 'Carregando…'; publish(); });
     wc.on('did-finish-load', () => {
-      if (!wc.getURL()) return;
+      if (!wc.getURL() || account.loadFailed) return;
       account.reloadUntil = 0;
+      account.health.loaded();
       wc.setZoomFactor(currentZoom()[i]); account.status = 'Pronta'; publish();
     });
+    wc.on('did-navigate', (_event, _url, status) => { if (status >= 400) { account.loadFailed = true; account.health.fail('Servidor respondeu HTTP ' + status, status >= 500); } });
     wc.on('did-fail-load', (_event, code, description, _url, isMainFrame) => {
-      if (isMainFrame && code !== -3) { account.status = `Erro: ${description}`; publish(); }
+      if (isMainFrame && code !== -3) { account.loadFailed = true; account.status = `Erro: ${description}`; account.health.fail(account.status, code > -200); publish(); }
     });
-    wc.on('render-process-gone', () => { account.status = 'Página interrompida. Use ↻.'; publish(); });
+    wc.on('render-process-gone', () => { if (closing) return; account.health.fail('Página interrompida'); account.status = 'Página interrompida. Use ↻.'; publish(); });
     win.contentView.addChildView(view);
     return account;
 }
@@ -225,8 +259,10 @@ async function setAccountEnabled(id, enabled) {
     accounts[id] = createAccount(id);
     // O botão flutuante deve continuar acima das páginas recém-criadas.
     win.contentView.removeChildView(toggleView); win.contentView.addChildView(toggleView);
+    win.contentView.removeChildView(gridShortcutView); win.contentView.addChildView(gridShortcutView);
     loadAccount(accounts[id]);
   } else {
+    old.health.stop();
     old.votePopups.close(); win.contentView.removeChildView(old.view);
     old.view.webContents.close();
     accounts[id] = { view: null, status: 'Desativada', linkStatus: '' };
@@ -237,7 +273,7 @@ async function setAccountEnabled(id, enabled) {
 }
 function createWindow() {
   closing = false;
-  win = new BrowserWindow({ width: 1360, height: 900, minWidth: 1000, minHeight: 600,
+  win = new BrowserWindow({ width: 1360, height: 900, minWidth: 620, minHeight: 480,
     title: 'PokeIdle Multi', backgroundColor: '#101722',
     webPreferences: { preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false, contextIsolation: true, sandbox: true } });
@@ -256,23 +292,38 @@ function createWindow() {
   installReloadKeys(toggleView.webContents);
   toggleView.webContents.on('will-navigate', event => event.preventDefault());
   toggleView.webContents.loadFile(togglePath);
+  gridShortcutView = new WebContentsView({ webPreferences: {
+    preload: path.join(__dirname, 'preload.js'), nodeIntegration: false, contextIsolation: true, sandbox: true
+  } });
+  gridShortcutView.setBackgroundColor('#00000000');
+  win.contentView.addChildView(gridShortcutView);
+  gridShortcutView.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  gridShortcutView.webContents.on('will-navigate', event => event.preventDefault());
+  installReloadKeys(gridShortcutView.webContents);
+  gridShortcutView.webContents.loadFile(gridShortcutPath);
   layout();
   accounts.forEach(loadAccount);
+  networkTimer = setInterval(() => { if (!closing && !net.isOnline()) accounts.forEach(a => a.health?.fail('Rede indisponível no Windows')); }, 15000);
+  networkTimer.unref();
   win.on('resize', layout);
   for (const name of ['minimize', 'restore', 'show']) win.on(name, () => { layout(); updateMetrics(); publish(); });
   win.on('close', event => {
     if (closing) return;
     event.preventDefault();
     closing = true;
+    clearInterval(networkTimer); accounts.forEach(a => a.health?.stop());
     // Garante que as gravações pendentes de cookies sejam enviadas ao disco.
     Promise.allSettled(accounts.filter(a => a.view).map(a => a.view.webContents.session.cookies.flushStore()))
       .finally(() => win.destroy());
   });
   win.on('closed', () => {
     // WebContentsView exige limpeza explícita quando a janela termina.
-    clearInterval(metricsTimer);
+    clearInterval(metricsTimer); clearInterval(networkTimer);
+    accounts.forEach(a => a.health?.stop());
     accounts.filter(a => a.view).forEach(({ view, votePopups }) => { votePopups.close(); if (!view.webContents.isDestroyed()) view.webContents.close(); });
     if (toggleView && !toggleView.webContents.isDestroyed()) toggleView.webContents.close();
+    if (gridShortcutView && !gridShortcutView.webContents.isDestroyed()) gridShortcutView.webContents.close();
+    gridShortcutView = null;
     toggleView = null;
     accounts = []; win = null;
   });
@@ -295,6 +346,13 @@ else {
     require('electron').autoUpdater.on('before-quit-for-update', () => { closing = true; });
     // Apenas a interface local recebe acesso a estes comandos.
     ipcMain.handle('command', async (event, command, value) => {
+      const fromGridShortcut = gridShortcutView && event.sender === gridShortcutView.webContents &&
+        event.senderFrame === gridShortcutView.webContents.mainFrame && event.senderFrame.url === pathToFileURL(gridShortcutPath).href;
+      if (fromGridShortcut) {
+        if (command !== 'back-grid') throw new Error('Comando inválido');
+        if (headerHidden && selected !== null) { selected = null; layout(); publish(); }
+        return { selected };
+      }
       const fromToggle = toggleView && event.sender === toggleView.webContents &&
         event.senderFrame === toggleView.webContents.mainFrame && event.senderFrame.url === pathToFileURL(togglePath).href;
       if (fromToggle) {
@@ -311,7 +369,19 @@ else {
         void updates.action(value);
         return state();
       }
-      if (command === 'grid') { selected = null; layout(); }
+      if (command === 'identity') {
+        if (!Number.isInteger(value?.id) || value.id < 0 || value.id > 3 || typeof value.name !== 'string' || !value.name.trim() || value.name.trim().length > 24 || !/^#[0-9a-f]{6}$/i.test(value.color)) throw new Error('Informe nome (até 24 caracteres) e cor válidos.');
+        const id = value.id, previousName = config.names[id], previousColor = config.colors[id];
+        config.names[id] = value.name.trim(); config.colors[id] = value.color;
+        try { save(); } catch (error) { config.names[id] = previousName; config.colors[id] = previousColor; throw error; }
+      }
+      else if (command === 'health-options') {
+        if (typeof value?.alerts !== 'boolean' || typeof value.autoRecover !== 'boolean') throw new Error('Opções inválidas');
+        const previous = { alerts: config.alerts, autoRecover: config.autoRecover }; Object.assign(config, { alerts: value.alerts, autoRecover: value.autoRecover });
+        try { save(); } catch (error) { Object.assign(config, previous); throw error; }
+        accounts.forEach(a => a.health?.configure());
+      }
+      else if (command === 'grid') { selected = null; layout(); }
       else if (command === 'address') { addressOpen = !addressOpen; layout(); updateMetrics(); }
       else if (command === 'economy') {
         if (typeof value !== 'boolean') throw new Error('Valor inválido');
@@ -341,7 +411,7 @@ else {
         if (!Number.isInteger(id) || id < 0 || id > 3) throw new Error('Conta inválida');
         if (!accounts[id].view) throw new Error('Ative esta conta em Configurações.');
         const wc = accounts[id].view.webContents;
-        if (command === 'focus') { selected = id; layout(); wc.focus(); }
+        if (command === 'focus') { selected = selected === id ? null : id; layout(); wc.focus(); }
         else if (command === 'refresh') { refreshAccount(id, value.ignoreCache === true); }
         else if (command === 'mute') {
           const previous = config.muted[id];

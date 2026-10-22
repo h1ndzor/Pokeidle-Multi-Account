@@ -1,0 +1,4 @@
+html, body { margin: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; }
+button { width: 36px; height: 36px; border: 0; padding: 0; background: transparent; color: transparent; cursor: pointer; font-size: 22px; }
+button:hover, button:focus-visible { background: #172234dd; color: #edf3fb; border-radius: 0 0 6px 0; }
+button:focus-visible { outline: 2px solid #6ee7b7; outline-offset: -2px; }

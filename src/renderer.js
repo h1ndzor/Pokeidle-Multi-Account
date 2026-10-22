@@ -53,10 +53,22 @@ for (let id = 0; id < 4; id++) {
 }
 document.querySelector('#economy').onchange = event => command('economy', event.target.checked);
 document.querySelector('#close-popups').onclick = () => command('close-popups');
+for (let id = 0; id < 4; id++) {
+  const form = document.createElement('form'); form.className = 'identity';
+  const name = document.createElement('input'); name.maxLength = 24; name.required = true; name.setAttribute('aria-label', 'Nome da conta ' + (id + 1));
+  const color = document.createElement('input'); color.type = 'color'; color.setAttribute('aria-label', 'Cor da conta ' + (id + 1));
+  const button = document.createElement('button'); button.textContent = 'Salvar';
+  form.append(name, color, button); form.onsubmit = async event => { event.preventDefault(); button.disabled = true; await command('identity', { id, name: name.value, color: color.value }); button.disabled = false; };
+  document.querySelector('#identities').append(form);
+}
+for (const id of ['health-alerts', 'health-recover']) document.getElementById(id).onchange = () => command('health-options', { alerts: document.querySelector('#health-alerts').checked, autoRecover: document.querySelector('#health-recover').checked });
 function render(state) {
+  document.querySelector('#health-alerts').checked = state.alerts;
+  document.querySelector('#health-recover').checked = state.autoRecover;
+  document.querySelector('#health-status').textContent = state.accounts.map(a => a.name + ': ' + (a.health ? a.health.message + (a.health.nextRetry ? ' · próxima tentativa às ' + new Date(a.health.nextRetry).toLocaleTimeString() : '') + (a.health.attempts ? ' · tentativas: ' + a.health.attempts + '/3' : '') : 'Desativada')).join('\n');
   document.querySelector('#economy').checked = state.economy;
   const format = value => value ? value.cpu.toFixed(1) + '% CPU · ' + value.memory.toFixed(0) + ' MB RAM' : 'Sem processo ativo';
-  document.querySelector('#usage').textContent = state.usage ? 'Total do app: ' + format(state.usage.total) + '\n' + state.usage.accounts.map((a, i) => 'Conta ' + (i + 1) + ': ' + format(a)).join('\n') : 'Aguardando medição…';
+  document.querySelector('#usage').textContent = state.usage ? 'Total do app: ' + format(state.usage.total) + '\n' + state.usage.accounts.map((a, i) => state.accounts[i].name + ': ' + format(a)).join('\n') : 'Aguardando medição…';
   if (state.update) {
     const update = state.update;
     document.querySelector('#app-version').textContent = `v${update.version}`;
@@ -71,9 +83,16 @@ function render(state) {
   document.querySelector('#settings-panel').hidden = !state.addressOpen;
   document.querySelector('#settings').setAttribute('aria-expanded', String(state.addressOpen));
   if (document.activeElement !== document.querySelector('#url')) document.querySelector('#url').value = state.url;
-  document.querySelector('#mode').textContent = state.selected === null ? '4 contas · grid 2 × 2' : `Conta ${state.selected + 1} ampliada · outras 3 em segundo plano`;
+  document.querySelector('#mode').textContent = state.selected === null ? '4 contas · grid 2 × 2' : `${state.accounts[state.selected].name} ampliada`;
   state.accounts.forEach(account => {
     const card = container.children[account.id];
+    card.querySelector('.select').textContent = account.name;
+    card.style.setProperty('--account-color', account.color);
+    card.classList.toggle('attention', account.health?.problem === true);
+    document.querySelectorAll('#account-power label')[account.id].lastChild.textContent = account.name;
+    browserOptions.children[account.id].firstChild.textContent = account.name;
+    const identity = document.querySelectorAll('.identity')[account.id];
+    if (!identity.contains(document.activeElement)) { identity.children[0].value = account.name; identity.children[1].value = account.color; }
     card.classList.toggle('off', !account.enabled);
     card.querySelectorAll('button').forEach(button => { button.disabled = !account.enabled; });
     document.querySelectorAll('#account-power input')[account.id].checked = account.enabled;
@@ -86,8 +105,8 @@ function render(state) {
     mute.title = `${account.muted ? 'Ativar' : 'Silenciar'} som da Conta ${account.id + 1}`;
     mute.setAttribute('aria-label', mute.title);
     mute.setAttribute('aria-pressed', String(account.muted));
-    const status = account.linkStatus || account.status;
-    card.querySelector('.select').title = `Conta ${account.id + 1}: ${status}`;
+    const status = account.health?.problem ? account.health.message : account.linkStatus || account.status;
+    card.querySelector('.select').title = `${account.name}: ${status}`;
     card.querySelector('.status').textContent = status;
     card.querySelector('.status').title = status;
     const select = browserOptions.children[account.id].querySelector('select');
