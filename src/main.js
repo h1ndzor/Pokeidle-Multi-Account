@@ -19,9 +19,10 @@ const configPath = path.join(app.getPath('userData'), 'preferences.json');
 const uiPath = path.join(__dirname, 'index.html');
 const togglePath = path.join(__dirname, 'toggle.html');
 const gridShortcutPath = path.join(__dirname, 'grid-shortcut.html');
-let config = { alerts: true, autoRecover: false, names: ['Conta 1', 'Conta 2', 'Conta 3', 'Conta 4'], colors: ['#6ee7b7', '#60a5fa', '#fbbf24', '#c084fc'], economy: false, enabled: [true, true, true, true], url: 'https://pokeidle.io', zoom: [1, 1, 1, 1], zoomFull: [1, 1, 1, 1], muted: [false, false, false, false], browsers: ['default', 'default', 'default', 'default'] };
+let config = { accountCount: 4, alerts: true, autoRecover: false, names: ['Conta 1', 'Conta 2', 'Conta 3', 'Conta 4'], colors: ['#6ee7b7', '#60a5fa', '#fbbf24', '#c084fc'], economy: false, enabled: [true, true, true, true], url: 'https://pokeidle.io', zoom: [1, 1, 1, 1], zoomFull: [1, 1, 1, 1], muted: [false, false, false, false], browsers: ['default', 'default', 'default', 'default'] };
 try {
   const saved = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  config.accountCount = saved.accountCount === 3 ? 3 : 4;
   config.alerts = saved.alerts !== false; config.autoRecover = saved.autoRecover === true;
   if (Array.isArray(saved.names) && saved.names.length === 4) config.names = saved.names.map((v,i) => typeof v === 'string' && v.trim() ? v.trim().slice(0,24) : config.names[i]);
   if (Array.isArray(saved.colors) && saved.colors.length === 4) config.colors = saved.colors.map((v,i) => /^#[0-9a-f]{6}$/i.test(v) ? v : config.colors[i]);
@@ -39,6 +40,7 @@ try {
     config.zoom = saved.zoom.map(z => Number.isFinite(z) ? Math.min(2, Math.max(0.5, z)) : 1);
   }
 } catch { /* Primeira execução: usamos os valores padrão. */ }
+if (config.accountCount === 3) config.enabled[3] = false;
 let win;
 let accounts = [];
 let selected = null; // null significa grid; 0 a 3 significa uma conta ampliada.
@@ -109,7 +111,7 @@ function updateMetrics() {
   metricsTimer.unref();
 }
 function state() {
-  return { alerts: config.alerts, autoRecover: config.autoRecover, economy: config.economy, usage, update: updates?.getState(), url: config.url, selected, addressOpen, headerHidden, browsers: browsers.map(b => ({ id: b.id, name: b.name, available: Boolean(b.executable) })), accounts: accounts.map((a, i) => ({
+  return { accountCount: config.accountCount, alerts: config.alerts, autoRecover: config.autoRecover, economy: config.economy, usage, update: updates?.getState(), url: config.url, selected, addressOpen, headerHidden, browsers: browsers.map(b => ({ id: b.id, name: b.name, available: Boolean(b.executable) })), accounts: accounts.map((a, i) => ({
     id: i, name: config.names[i], color: config.colors[i], health: a.health?.state(), enabled: Boolean(a.view), muted: config.muted[i], zoom: currentZoom()[i], zoomMode: selected === null ? 'grid' : 'ampliada', status: a.status, linkStatus: a.linkStatus, browser: config.browsers[i]
   })) };
 }
@@ -245,16 +247,18 @@ function createAccount(i) {
     return account;
 }
 const changingAccounts = new Set();
-async function setAccountEnabled(id, enabled) {
+async function setAccountEnabled(id, enabled, accountCount = config.accountCount) {
   if (changingAccounts.has(id)) throw new Error('Aguarde a alteração desta conta.');
   changingAccounts.add(id);
   try {
   const old = accounts[id];
-  if (Boolean(old.view) === enabled) return;
-  if (!enabled) await old.view.webContents.session.cookies.flushStore();
+  if (Boolean(old.view) === enabled && accountCount === config.accountCount) return;
+  if (!enabled && old.view) await old.view.webContents.session.cookies.flushStore();
   if (closing || !win || win.isDestroyed()) return;
-  const previous = config.enabled[id]; config.enabled[id] = enabled;
-  try { save(); } catch (error) { config.enabled[id] = previous; throw error; }
+  const previous = config.enabled[id], previousCount = config.accountCount;
+  config.enabled[id] = enabled; config.accountCount = accountCount;
+  try { save(); } catch (error) { config.enabled[id] = previous; config.accountCount = previousCount; throw error; }
+  if (Boolean(old.view) === enabled) { layout(); updateMetrics(); return; }
   if (enabled) {
     accounts[id] = createAccount(id);
     // O botão flutuante deve continuar acima das páginas recém-criadas.
@@ -390,8 +394,13 @@ else {
         layout();
       }
       else if (command === 'close-popups') { accounts.forEach(a => a.votePopups?.close()); }
+      else if (command === 'account-count') {
+        if (![3, 4].includes(value)) throw new Error('Escolha 3 ou 4 contas.');
+        if (value !== config.accountCount) await setAccountEnabled(3, value === 4, value);
+      }
       else if (command === 'enabled') {
         if (!Number.isInteger(value?.id) || value.id < 0 || value.id > 3 || typeof value.enabled !== 'boolean') throw new Error('Conta inválida');
+        if (value.id >= config.accountCount) throw new Error('Escolha o modo de 4 contas primeiro.');
         await setAccountEnabled(value.id, value.enabled);
       }
       else if (command === 'browsers') {

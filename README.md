@@ -1,6 +1,6 @@
 # PokeIdle Multi
 
-Aplicativo para Windows que reúne **quatro contas independentes do [PokeIdle](https://pokeidle.io)** na mesma janela, com login, zoom e áudio separados.
+Aplicativo para Windows que reúne **três ou quatro contas independentes do [PokeIdle](https://pokeidle.io)** na mesma janela, com login, zoom e áudio separados.
 
 ## Instalar
 
@@ -31,6 +31,8 @@ O grid continua **2×2**. Em janelas de até 1100 pixels de largura útil, os co
 O zoom de cada conta é preservado. Para ganhar mais área, esconda a barra ou amplie uma conta. A interface interna do PokeIdle continua dependendo da adaptação do próprio site; se necessário, ajuste o zoom do grid independentemente do ampliado.
 
 ## Contas, atalhos e alertas
+
+Em **Configurações → Contas e atalhos → Quantidade de contas**, escolha **3 contas** ou **4 contas**. A escolha é salva. No modo de 3, a quarta página e seus popups são encerrados (a caça dessa conta para), seu controle fica oculto e o quarto espaço do grid 2×2 fica vazio. O login e as preferências são preservados. Voltar a 4 carrega a quarta conta novamente; as três primeiras não são recarregadas e mantêm suas escolhas individuais de ativação.
 
 Em **Configurações → Contas e atalhos**, escolha um nome (até 24 caracteres) e uma cor para cada conta e clique em **Salvar**. Isso muda a identificação visual, sem trocar os cookies ou o login.
 

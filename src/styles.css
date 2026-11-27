@@ -29,7 +29,7 @@ select { width: 100%; min-width: 0; background: #172234; color: #edf3fb; border:
 #address[hidden] { display: none; }
 input { width: 290px; background: #172234; color: #edf3fb; border: 1px solid #3e506b; padding: 6px 10px; border-radius: 6px; }
 #message { color: #fda4af; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; flex: 1; min-width: 0; }
+nav { display: grid; grid-template-columns: repeat(var(--account-count, 4), minmax(0, 1fr)); gap: 6px; flex: 1; min-width: 0; }
 .account { padding: 2px 3px; background: #172234; border: 1px solid #304159; border-radius: 6px; min-width: 0; }
 .account.active { border-color: #6ee7b7; }
 .controls { display: flex; gap: 3px; }
@@ -100,3 +100,7 @@ nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
   .top { gap: 4px; }
   #grid, #settings { padding-left: 4px; padding-right: 4px; font-size: 11px; }
 }
+
+/* Respeita a ocultação da quarta conta em elementos flex/grid. */
+[hidden] { display: none !important; }
+#account-count { max-width: 200px; margin: 8px; }

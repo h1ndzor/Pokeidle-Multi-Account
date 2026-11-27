@@ -62,7 +62,14 @@ for (let id = 0; id < 4; id++) {
   document.querySelector('#identities').append(form);
 }
 for (const id of ['health-alerts', 'health-recover']) document.getElementById(id).onchange = () => command('health-options', { alerts: document.querySelector('#health-alerts').checked, autoRecover: document.querySelector('#health-recover').checked });
+document.querySelector('#account-count').onchange = async event => {
+  const select = event.target; select.disabled = true;
+  try { await command('account-count', Number(select.value)); }
+  finally { select.disabled = false; }
+};
 function render(state) {
+  document.querySelector('#account-count').value = String(state.accountCount);
+  document.documentElement.style.setProperty('--account-count', state.accountCount);
   document.querySelector('#health-alerts').checked = state.alerts;
   document.querySelector('#health-recover').checked = state.autoRecover;
   document.querySelector('#health-status').textContent = state.accounts.map(a => a.name + ': ' + (a.health ? a.health.message + (a.health.nextRetry ? ' · próxima tentativa às ' + new Date(a.health.nextRetry).toLocaleTimeString() : '') + (a.health.attempts ? ' · tentativas: ' + a.health.attempts + '/3' : '') : 'Desativada')).join('\n');
@@ -83,9 +90,14 @@ function render(state) {
   document.querySelector('#settings-panel').hidden = !state.addressOpen;
   document.querySelector('#settings').setAttribute('aria-expanded', String(state.addressOpen));
   if (document.activeElement !== document.querySelector('#url')) document.querySelector('#url').value = state.url;
-  document.querySelector('#mode').textContent = state.selected === null ? '4 contas · grid 2 × 2' : `${state.accounts[state.selected].name} ampliada`;
+  document.querySelector('#mode').textContent = state.selected === null ? `${state.accountCount} contas · grid 2 × 2` : `${state.accounts[state.selected].name} ampliada`;
   state.accounts.forEach(account => {
     const card = container.children[account.id];
+    const outsideMode = account.id >= state.accountCount;
+    card.hidden = outsideMode;
+    browserOptions.children[account.id].hidden = outsideMode;
+    document.querySelectorAll('#identities .identity')[account.id].hidden = outsideMode;
+    document.querySelectorAll('#account-power label')[account.id].hidden = outsideMode;
     card.querySelector('.select').textContent = account.name;
     card.style.setProperty('--account-color', account.color);
     card.classList.toggle('attention', account.health?.problem === true);
